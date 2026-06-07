@@ -99,7 +99,44 @@ app.post("/api/upload", upload.single("image"), (req, res) => {
     res.status(500).json({ message: err.message })
   }
 })
+// api doanh thu
+app.get("/api/revenue", async (req, res) => {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
 
+  // orders hôm nay
+  const todayOrders = await Order.find({
+    status: "done",
+    createdAt: { $gte: today }
+  })
+
+  // orders tuần này
+  const weekStart = new Date()
+  weekStart.setDate(weekStart.getDate() - 7)
+  const weekOrders = await Order.find({
+    status: "done",
+    createdAt: { $gte: weekStart }
+  })
+
+  // orders tháng này
+  const monthStart = new Date()
+  monthStart.setDate(1)
+  monthStart.setHours(0, 0, 0, 0)
+  const monthOrders = await Order.find({
+    status: "done",
+    createdAt: { $gte: monthStart }
+  })
+
+  const calcTotal = (orders) => orders.reduce((sum, order) =>
+    sum + order.items.reduce((s, item) => s + item.price * item.qty, 0), 0)
+
+  res.json({
+    today: { total: calcTotal(todayOrders), count: todayOrders.length },
+    week: { total: calcTotal(weekOrders), count: weekOrders.length },
+    month: { total: calcTotal(monthOrders), count: monthOrders.length },
+    recentOrders: todayOrders.slice(0, 10)
+  })
+})
 // đổi app.listen thành httpServer.listen
 httpServer.listen(3000, () => {
   console.log("Server chạy ở port 3000")

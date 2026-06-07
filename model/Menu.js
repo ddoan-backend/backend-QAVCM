@@ -5,6 +5,6 @@ const menuSchema = new mongoose.Schema({
     category: String,
     price: Number,
     image: String,
-},{collection:"Menus"})
+},{collection:"menus"})
 
 module.exports = mongoose.model("Menu", menuSchema)

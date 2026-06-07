@@ -13,7 +13,7 @@ const io = new Server(httpServer, {
 })
 
 app.use(cors({
-  origin: ["https://qu-n-n-v-t-c-mai.vercel.app", "http://localhost:5173"]
+  origin: "*"
 }))
 app.use(express.json())
 

@@ -12,10 +12,12 @@ const io = new Server(httpServer, {
   cors: { origin: "*" }
 })
 
-app.use(cors())
+app.use(cors({
+  origin: ["https://qu-n-n-v-t-c-mai.vercel.app", "http://localhost:5173"]
+}))
 app.use(express.json())
 
-mongoose.connect("mongodb://localhost:27017/quan-an")
+mongoose.connect("process.env.MONGODB_URI")
   .then(() => console.log("Kết nối MongoDB thành công!"))
   .catch((err) => console.log("Lỗi kết nối:", err))
 

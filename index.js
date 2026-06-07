@@ -1,10 +1,16 @@
 const express = require("express")
 const cors = require("cors")
 const mongoose = require("mongoose")
-const Order = require("./model/Order")  // import model
+const { createServer } = require("http")
+const { Server } = require("socket.io")
+const Order = require("./model/Order")
 const Menu = require("./model/Menu.js")
 
 const app = express()
+const httpServer = createServer(app)
+const io = new Server(httpServer, {
+  cors: { origin: "*" }
+})
 
 app.use(cors())
 app.use(express.json())
@@ -13,24 +19,88 @@ mongoose.connect("mongodb://localhost:27017/quan-an")
   .then(() => console.log("Kết nối MongoDB thành công!"))
   .catch((err) => console.log("Lỗi kết nối:", err))
 
+// Socket.io
+io.on("connection", (socket) => {
+  console.log("Client kết nối:", socket.id)
+})
+
 app.get("/", (req, res) => {
   res.json({ message: "Server đang chạy!" })
 })
 
+app.get("/api/orders", async (req, res) => {
+  const orders = await Order.find().sort({ createdAt: -1 })
+  res.json(orders)
+})
+
 app.post("/api/orders", async (req, res) => {
   const { tableId, items } = req.body
-
-  // lưu vào DB
   const newOrder = await Order.create({ tableId, items })
 
-  console.log("Order mới:", newOrder)
+  // báo cho kitchen biết có order mới
+  io.emit("new_order", newOrder)
+
   res.json({ message: "Đặt món thành công!", order: newOrder })
 })
-app.get("/api/menus", async (req, res) => {
-    const menus = await Menu.find()
-    res.json(menus)
+
+app.put("/api/orders/:id", async (req, res) => {
+  const { id } = req.params
+  const { status } = req.body
+  const order = await Order.findByIdAndUpdate(id, { status }, { new: true })
+
+  // báo cho kitchen biết order được cập nhật
+  io.emit("order_updated", order)
+
+  res.json(order)
 })
 
-app.listen(3000, () => {
+app.post("/api/login", (req, res) => {
+  const { username, password } = req.body
+  if (username === "admin" && password === "123456") {
+    res.json({ success: true, role: "kitchen" })
+  } else {
+    res.status(401).json({ success: false, message: "Sai tài khoản hoặc mật khẩu" })
+  }
+})
+
+app.get("/api/menus", async (req, res) => {
+  const menus = await Menu.find()
+  res.json(menus)
+})
+// Thêm món
+app.post("/api/menus", async (req, res) => {
+  const { name, price, category, image } = req.body
+  const newMenu = await Menu.create({ name, price, category, image })
+  res.json(newMenu)
+})
+
+// Sửa món
+app.put("/api/menus/:id", async (req, res) => {
+  const { id } = req.params
+  const menu = await Menu.findByIdAndUpdate(id, req.body, { new: true })
+  res.json(menu)
+})
+
+// Xóa món
+app.delete("/api/menus/:id", async (req, res) => {
+  const { id } = req.params
+  await Menu.findByIdAndDelete(id)
+  res.json({ message: "Xóa thành công!" })
+})
+// upload image
+const { upload } = require("./cloudinary")
+
+app.post("/api/upload", upload.single("image"), (req, res) => {
+  try {
+    console.log("File:", JSON.stringify(req.file))
+    res.json({ url: req.file.path })
+  } catch (err) {
+    console.log("Lỗi upload:", err.message)
+    res.status(500).json({ message: err.message })
+  }
+})
+
+// đổi app.listen thành httpServer.listen
+httpServer.listen(3000, () => {
   console.log("Server chạy ở port 3000")
 })
